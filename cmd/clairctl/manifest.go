@@ -146,6 +146,20 @@ func Inspect(ctx context.Context, r string) (*claircore.Manifest, error) {
 		}
 		res.Body.Close()
 
+		// If the URL is for a V4-signed S3 object, get a correct URL by using a GET request
+		// https://github.com/quay/clair/issues/1264
+		if strings.Contains(res.Request.URL.String(), "X-Amz-Algorithm=AWS4-HMAC-SHA256") {
+			req, err = http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+			if err != nil {
+				return nil, err
+			}
+			res, err = c.Do(req)
+			if err != nil {
+				return nil, err
+			}
+			res.Body.Close()
+		}
+
 		res.Request.Header.Del("User-Agent")
 		out.Layers = append(out.Layers, &claircore.Layer{
 			Hash:    ccd,
